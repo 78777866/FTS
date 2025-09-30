@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "./ui/button";
 import { supabase } from "../lib/supabase";
 import { getAdvisorSystem, fetchApiKeysForUser, summarizeLast30Days } from "../lib/ai";
@@ -6,16 +6,12 @@ import { callOpenRouterStream, type ChatMessage } from "../lib/openrouter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getAiModel } from "../lib/config";
-import { pushAiStatus } from "../lib/ai_status";
+
 import {
-  Activity,
   Loader2,
-  CheckCircle2,
   AlertTriangle,
   Database,
-  Save,
   Send as SendIcon,
-  MessageCircle,
   Trash2,
   RefreshCw,
   Bot,

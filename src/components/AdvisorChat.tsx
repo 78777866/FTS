@@ -59,14 +59,14 @@ export function AdvisorChat() {
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   
-  // Auto-scroll to bottom when new messages arrive
+  // Memoize scroll function to prevent recreating on every render
   const autoScrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
       if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     });
-  }, []);
+  }, [messagesEndRef]);
   
   // Check if there's content below and show scroll indicator
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -104,34 +104,53 @@ export function AdvisorChat() {
 
   useEffect(() => {
     if (!user) return;
+    
+    let isMounted = true;
+    
     (async () => {
-      const { data } = await supabase
-        .from("user_insights")
-        .select("summary, created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setInsights(data?.summary ?? null);
-      if (data?.created_at) {
-        const { count } = await supabase
-          .from("transactions")
-          .select("id", { count: "exact", head: true })
+      try {
+        const { data } = await supabase
+          .from("user_insights")
+          .select("summary, created_at")
           .eq("user_id", user.id)
-          .gt("created_at", data.created_at);
-        setNeedsRefresh((count ?? 0) > 0);
-      } else {
-        setNeedsRefresh(true);
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+          
+        if (!isMounted) return;
+        
+        setInsights(data?.summary ?? null);
+        if (data?.created_at) {
+          const { count } = await supabase
+            .from("transactions")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .gt("created_at", data.created_at);
+          if (isMounted) {
+            setNeedsRefresh((count ?? 0) > 0);
+          }
+        } else if (isMounted) {
+          setNeedsRefresh(true);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch insights:', error);
       }
     })();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
+  // Scroll effects with proper cleanup
   useEffect(() => {
     autoScrollToBottom();
-  }, [messages, autoScrollToBottom]);
+  }, [messages.length, autoScrollToBottom]);
   
   useEffect(() => {
-    autoScrollToBottom();
+    if (showTyping) {
+      autoScrollToBottom();
+    }
   }, [showTyping, autoScrollToBottom]);
 
   useEffect(() => {

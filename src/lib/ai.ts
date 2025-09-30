@@ -1,7 +1,6 @@
 import { callOpenRouter, deobfuscateKey, type ChatMessage } from "./openrouter";
 import { getAiModel } from "./config";
 import { supabase } from "./supabase";
-import { pushAiStatus } from "./ai_status";
 import { FinancialMath } from "./decimal-math";
 
 export const STRUCTURER_SYSTEM: ChatMessage = {
@@ -115,11 +114,11 @@ export async function fetchApiKeysForUser(userId: string): Promise<string[]> {
 }
 
 export async function summarizeLast30Days(userId: string): Promise<void> {
-  pushAiStatus({ scope: "structurer", stage: "start", message: "Background AI started" });
+  console.log('Starting financial data analysis');
   const since = new Date();
   since.setDate(since.getDate() - 30);
   
-  pushAiStatus({ scope: "structurer", stage: "fetch_transactions", message: "Fetching and validating comprehensive financial data" });
+  console.log('Fetching comprehensive financial data');
   
   // Fetch transactions (income/expense)
   const { data: transactions, error: txError } = await supabase
@@ -220,7 +219,7 @@ export async function summarizeLast30Days(userId: string): Promise<void> {
     totals: financialData.totals
   });
 
-  pushAiStatus({ scope: "structurer", stage: "call_openrouter", message: "Calling OpenRouter (Structurer)" });
+  console.log('Calling OpenRouter for AI analysis');
   const content = await callOpenRouter(
     [
       STRUCTURER_SYSTEM,
@@ -234,7 +233,7 @@ export async function summarizeLast30Days(userId: string): Promise<void> {
   );
 
   // Ensure single record per user: delete old and insert new
-  pushAiStatus({ scope: "structurer", stage: "save_insights", message: "Saving user_insights" });
+  console.log('Saving analysis results');
   await supabase.from("user_insights").delete().eq("user_id", userId);
   await supabase.from("user_insights").insert({ 
     user_id: userId, 
@@ -242,7 +241,7 @@ export async function summarizeLast30Days(userId: string): Promise<void> {
     summary: content, 
     data: financialData 
   });
-  pushAiStatus({ scope: "structurer", stage: "summary_ready", message: "Summary updated with comprehensive data" });
+  console.log('Financial analysis complete');
 }
 
 

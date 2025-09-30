@@ -7,27 +7,42 @@ export function useSupabaseAuth() {
 
   useEffect(() => {
     let isMounted = true;
+    
     supabase.auth.getSession().then(({ data }) => {
       if (!isMounted) return;
       setSession(data.session ?? null);
       setLoading(false);
       try {
         const id = data.session?.user?.id;
-        if (id) localStorage.setItem("current_user_id", id);
+        if (id) {
+          const currentId = localStorage.getItem("current_user_id");
+          if (currentId !== id) {
+            localStorage.setItem("current_user_id", id);
+          }
+        }
       } catch {}
     });
+    
     const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!isMounted) return;
+      
       setSession(newSession);
       try {
         const id = newSession?.user?.id;
         if (id) {
-          localStorage.setItem("current_user_id", id);
+          const currentId = localStorage.getItem("current_user_id");
+          if (currentId !== id) {
+            localStorage.setItem("current_user_id", id);
+          }
         } else {
-          // Clear all data when user signs out or session becomes invalid
-          localStorage.clear();
+          // Only clear when actually signing out, not on session refresh
+          if (_event === 'SIGNED_OUT') {
+            localStorage.clear();
+          }
         }
       } catch {}
     });
+    
     return () => {
       isMounted = false;
       sub.subscription.unsubscribe();

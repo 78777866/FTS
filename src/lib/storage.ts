@@ -63,23 +63,15 @@ function currentUserNs(): string {
   try {
     const uid = localStorage.getItem("current_user_id");
     
-    // Strict validation: user ID must exist and be valid UUID format
-    if (!uid || uid.length < 32 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid)) {
+    // More lenient validation to prevent excessive reloads
+    if (!uid || uid.length < 16) {
       console.warn('Invalid or missing user ID detected');
-      // Clear potentially corrupted data and force re-authentication
-      localStorage.clear();
-      throw new Error('Authentication required');
+      return "";
     }
     
     return `user_${uid}_`;
   } catch (error) {
     console.error('User namespace error:', error);
-    // Force logout/re-authentication by clearing storage
-    localStorage.clear();
-    // Redirect to prevent accessing unnamespaced data
-    if (typeof window !== 'undefined') {
-      window.location.reload();
-    }
     return "";
   }
 }

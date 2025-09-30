@@ -103,10 +103,13 @@ function AppContent() {
     balance: null,
     general: null
   });
+  const [lastSyncTime, setLastSyncTime] = useState<number>(0);
+  const SYNC_THROTTLE_MS = 2000; // Minimum 2 seconds between syncs
 
   useEffect(() => {
-    setDay(getDayData(dateKey));
+    // Batch these operations to reduce re-renders
     const s = getStartingBalance(dateKey);
+    setDay(getDayData(dateKey));
     setStartingBalanceInput(s === null ? "" : String(s));
     
     // Check if it's a new day and show balance continuation prompt
@@ -121,7 +124,11 @@ function AppContent() {
   }, [dateKey]);
 
   useEffect(() => {
+    let isMounted = true;
+    
     function onDataChanged(e: any) {
+      if (!isMounted) return;
+      
       const d = e?.detail?.date || dateKey;
       const type = e?.detail?.type;
       
@@ -130,8 +137,13 @@ function AppContent() {
         setDay(getDayData(dateKey));
       }
     }
+    
     window.addEventListener("fts-data-changed", onDataChanged);
-    return () => window.removeEventListener("fts-data-changed", onDataChanged);
+    
+    return () => {
+      isMounted = false;
+      window.removeEventListener("fts-data-changed", onDataChanged);
+    };
   }, [dateKey]);
 
   const totals = useMemo(() => calculateTotals({ ...day, startingBalance: Number(startingBalanceInput) || 0 }), [day, startingBalanceInput]);
@@ -177,9 +189,18 @@ function AppContent() {
 
   async function triggerSync() {
     if (!cloudSyncEnabled || !user) return;
+    
+    // Throttle sync calls to prevent excessive requests
+    const now = Date.now();
+    if (now - lastSyncTime < SYNC_THROTTLE_MS) {
+      console.log('Sync throttled, skipping');
+      return;
+    }
+    
     try {
       setErrors(prev => ({ ...prev, sync: null }));
       setSyncStatus("pending");
+      setLastSyncTime(now);
       await executeWithLoading('sync', () => performFullSync(user.id));
       setSyncStatus("success");
       setTimeout(() => setSyncStatus("idle"), 1500);
